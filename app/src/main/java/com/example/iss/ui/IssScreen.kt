@@ -37,6 +37,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.iss.R
 import com.example.iss.viewmodel.IssViewModel
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +62,7 @@ fun IssScreen(
     }
 
     LaunchedEffect(Unit) {
+        viewModel.initDatabase(context)
         viewModel.initPrefs(context)
         viewModel.initLocation(context)
         val hasPermission = ContextCompat.checkSelfPermission(
@@ -138,6 +141,14 @@ fun IssScreen(
                         Text(
                             text = stringResource(R.string.longitude, String.format("%.4f", uiState.longitude))
                         )
+                        uiState.lastUpdated?.let { timestamp ->
+                            Text(
+                                text = "Updated: ${formatTime(timestamp, context)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -160,4 +171,9 @@ fun IssScreen(
             }
         }
     }
+}
+
+private fun formatTime(timestamp: Long, context: android.content.Context): String {
+    val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+    return sdf.format(java.util.Date(timestamp))
 }

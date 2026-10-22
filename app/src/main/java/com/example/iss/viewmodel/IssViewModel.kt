@@ -7,6 +7,9 @@ import android.location.Location
 import android.os.Looper
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.iss.data.AppDatabase
+import com.example.iss.data.IssPositionEntity
+import com.example.iss.data.LastPositionRaw
 import com.example.iss.data.RetrofitClient
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
@@ -31,7 +34,8 @@ data class IssUiState(
     val isLoading: Boolean = true,
     val error: String? = null,
     val hasLocationPermission: Boolean = false,
-    val pathHistory: List<Pair<Double, Double>> = emptyList()
+    val pathHistory: List<Pair<Double, Double>> = emptyList(),
+    val lastUpdated: Long? = null
 )
 
 private const val PREFS_NAME = "iss_path"
@@ -48,7 +52,12 @@ class IssViewModel : ViewModel() {
     private var fusedLocationClient: FusedLocationProviderClient? = null
     private var locationCallback: LocationCallback? = null
     private var prefs: SharedPreferences? = null
+    private var issDao: com.example.iss.data.IssDao? = null
     private var consecutiveFailures = 0
+
+    fun initDatabase(context: Context) {
+        issDao = AppDatabase.getDatabase(context).issDao()
+    }
 
     fun initPrefs(context: Context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -103,15 +112,22 @@ class IssViewModel : ViewModel() {
         fetchIssPosition()
     }
 
-    private suspend fun getRetryDelay(attempt: Int): Long {
-        val delay = minOf(INITIAL_RETRY_DELAY_MS * (1L shl attempt), MAX_RETRY_DELAY_MS)
-        delay(delay)
-        return delay
-    }
-
     private fun fetchIssPosition() {
         viewModelScope.launch {
             var retryDelay = INITIAL_RETRY_DELAY_MS
+
+            // Load cached position on first fetch
+            if (_uiState.value.latitude == 0.0 && _uiState.value.longitude == 0.0) {
+                issDao?.getLastPositionRaw()?.let { raw ->
+                    _uiState.value = _uiState.value.copy(
+                        latitude = raw.latitude,
+                        longitude = raw.longitude,
+                        isLoading = false,
+                        lastUpdated = raw.timestamp,
+                        pathHistory = loadPath()
+                    )
+                }
+            }
 
             while (true) {
                 try {
@@ -120,6 +136,9 @@ class IssViewModel : ViewModel() {
                     val lng = response.issPosition.longitudeDouble()
                     val history = _uiState.value.pathHistory + Pair(lat, lng)
                     val trimmed = if (history.size > 200) history.takeLast(200) else history
+
+                    // Save to Room
+                    issDao?.insertPosition(IssPositionEntity(latitude = lat, longitude = lng, timestamp = System.currentTimeMillis()))
 
                     // Reset on success
                     consecutiveFailures = 0
@@ -130,7 +149,8 @@ class IssViewModel : ViewModel() {
                         longitude = lng,
                         isLoading = false,
                         error = null,
-                        pathHistory = trimmed
+                        pathHistory = trimmed,
+                        lastUpdated = System.currentTimeMillis()
                     )
                     savePath(trimmed)
                 } catch (e: Exception) {
@@ -139,13 +159,11 @@ class IssViewModel : ViewModel() {
                     val errorMessage = formatErrorMessage(e)
 
                     if (_uiState.value.latitude == 0.0 && _uiState.value.longitude == 0.0) {
-                        // First failure — show error but keep loading
                         _uiState.value = _uiState.value.copy(
                             error = errorMessage,
                             isLoading = false
                         )
                     } else {
-                        // Subsequent failures — update error message but keep last known position
                         _uiState.value = _uiState.value.copy(
                             error = errorMessage
                         )
@@ -155,7 +173,6 @@ class IssViewModel : ViewModel() {
                         _uiState.value = _uiState.value.copy(
                             error = "Multiple connection attempts failed. Using last known position."
                         )
-                        // Still continue polling but with longer delay
                     }
 
                     retryDelay = minOf(retryDelay * 2, MAX_RETRY_DELAY_MS)

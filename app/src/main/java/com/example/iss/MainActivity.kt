@@ -6,11 +6,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
+import com.example.iss.navigation.Screen
 import com.example.iss.ui.AstronautDetailScreen
 import com.example.iss.ui.AstroScreen
 import com.example.iss.ui.IssScreen
@@ -18,19 +21,8 @@ import com.example.iss.ui.MenuScreen
 import com.example.iss.ui.SettingsScreen
 import com.example.iss.ui.SplashScreen
 import com.example.iss.ui.theme.ISSTheme
-
-/**
- * Defines the available application screens.
- * Using a sealed class ensures type safety and eliminates errors when entering strings.
- */
-sealed class Screen {
-    object Splash : Screen()
-    object Menu : Screen()
-    object Map : Screen()
-    object Settings : Screen()
-    object Astro : Screen()
-    data class Detail(val name: String, val craft: String) : Screen()
-}
+import com.example.iss.viewmodel.AstroViewModel
+import com.example.iss.viewmodel.IssViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,39 +30,55 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ISSTheme {
-                var currentScreen by remember { mutableStateOf<Screen>(Screen.Splash) }
-                var selectedName by remember { mutableStateOf("") }
-                var selectedCraft by remember { mutableStateOf("") }
+                val navController: NavHostController = rememberNavController()
                 
                 Scaffold(modifier = Modifier.fillMaxSize()) {
-                    when (currentScreen) {
-                        is Screen.Splash ->
-                            SplashScreen(onFinished = { currentScreen = Screen.Menu })
-                        is Screen.Menu ->
+                    NavHost(
+                        navController = navController,
+                        startDestination = Screen.Splash
+                    ) {
+                        composable<Screen.Splash> {
+                            SplashScreen(onFinished = { navController.navigate(Screen.Menu) { popUpTo(Screen.Splash) { inclusive = true } } })
+                        }
+
+                        composable<Screen.Menu> {
                             MenuScreen(
-                                onMap = { currentScreen = Screen.Map },
-                                onSettings = { currentScreen = Screen.Settings },
-                                onAstro = { currentScreen = Screen.Astro },
+                                onMap = { navController.navigate(Screen.Map) },
+                                onSettings = { navController.navigate(Screen.Settings) },
+                                onAstro = { navController.navigate(Screen.Astro) },
                                 onExit = { finish() }
                             )
-                        is Screen.Map ->
-                            IssScreen(onBack = { currentScreen = Screen.Menu })
-                        is Screen.Settings -> SettingsScreen(onBack = { currentScreen = Screen.Menu })
-                        is Screen.Astro ->
+                        }
+
+                        composable<Screen.Map> {
+                            val viewModel: IssViewModel = viewModel()
+                            IssScreen(
+                                onBack = { navController.popBackStack() },
+                                viewModel = viewModel
+                            )
+                        }
+
+                        composable<Screen.Settings> {
+                            SettingsScreen(onBack = { navController.popBackStack() })
+                        }
+
+                        composable<Screen.Astro> {
+                            val viewModel: AstroViewModel = viewModel()
                             AstroScreen(
-                                onBack = { currentScreen = Screen.Menu },
-                                onPersonClick = { name, craft ->
-                                    selectedName = name
-                                    selectedCraft = craft
-                                    currentScreen = Screen.Detail(name, craft)
-                                }
+                                onBack = { navController.popBackStack() },
+                                viewModel = viewModel,
+                                onPersonClick = { name, craft -> navController.navigate(Screen.Detail(name, craft)) }
                             )
-                        is Screen.Detail ->
+                        }
+
+                        composable<Screen.Detail> { backStackEntry ->
+                            val route = backStackEntry.toRoute<Screen.Detail>()
                             AstronautDetailScreen(
-                                name = selectedName,
-                                craft = selectedCraft,
-                                onBack = { currentScreen = Screen.Astro }
+                                name = route.name,
+                                craft = route.craft,
+                                onBack = { navController.popBackStack() }
                             )
+                        }
                     }
                 }
             }

@@ -21,16 +21,20 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.iss.R
 import com.example.iss.viewmodel.AstroViewModel
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +44,11 @@ fun AstroScreen(
     viewModel: AstroViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.initCache(context)
+    }
 
     Scaffold(
         topBar = {
@@ -100,6 +109,14 @@ fun AstroScreen(
                             text = stringResource(R.string.astro_total, uiState.totalNumber),
                             modifier = Modifier.padding(top = 8.dp)
                         )
+                        uiState.lastUpdated?.let { timestamp ->
+                            Text(
+                                text = "Updated: ${formatTime(timestamp, context)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -140,4 +157,9 @@ fun AstroScreen(
             }
         }
     }
+}
+
+private fun formatTime(timestamp: Long, context: android.content.Context): String {
+    val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+    return sdf.format(java.util.Date(timestamp))
 }

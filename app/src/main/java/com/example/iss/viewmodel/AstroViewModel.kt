@@ -1,7 +1,9 @@
 package com.example.iss.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.iss.data.AstroCache
 import com.example.iss.data.AstroPerson
 import com.example.iss.data.RetrofitClient
 import kotlinx.coroutines.delay
@@ -16,13 +18,18 @@ data class AstroUiState(
     val people: List<AstroPerson> = emptyList(),
     val totalNumber: Int = 0,
     val isLoading: Boolean = true,
-    val error: String? = null
+    val error: String? = null,
+    val lastUpdated: Long? = null
 )
 
 class AstroViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(AstroUiState())
     val uiState: StateFlow<AstroUiState> = _uiState.asStateFlow()
+
+    fun initCache(context: Context) {
+        AstroCache.init(context)
+    }
 
     init {
         fetchAstroPeople()
@@ -35,16 +42,30 @@ class AstroViewModel : ViewModel() {
 
     private fun fetchAstroPeople() {
         viewModelScope.launch {
+            // Try cache first
+            if (AstroCache.isCacheValid()) {
+                AstroCache.getCachedAstros()?.let { cached ->
+                    _uiState.value = AstroUiState(
+                        people = cached,
+                        totalNumber = cached.size,
+                        isLoading = false,
+                        lastUpdated = AstroCache.getParsedTimestamp()
+                    )
+                }
+            }
+
             var retryDelay = 1000L
             val maxRetries = 3
 
             for (attempt in 0..maxRetries) {
                 try {
                     val response = RetrofitClient.apiService.getAstroPeople()
+                    AstroCache.cacheAstros(response.people, response.number)
                     _uiState.value = AstroUiState(
                         people = response.people,
                         totalNumber = response.number,
-                        isLoading = false
+                        isLoading = false,
+                        lastUpdated = System.currentTimeMillis()
                     )
                     return@launch
                 } catch (e: Exception) {
