@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -65,8 +66,8 @@ fun IssScreen(
             context, Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED ||
                 ContextCompat.checkSelfPermission(
-                    context, Manifest.permission.ACCESS_COARSE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED
+            context, Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
 
         if (hasPermission) {
             viewModel.startLocationUpdates()
@@ -123,6 +124,12 @@ fun IssScreen(
                             color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.padding(top = 8.dp)
                         )
+                        ElevatedButton(
+                            onClick = { viewModel.retryFetch() },
+                            modifier = Modifier.padding(top = 8.dp)
+                        ) {
+                            Text(stringResource(R.string.retry))
+                        }
                     } else {
                         Text(
                             text = stringResource(R.string.latitude, String.format("%.4f", uiState.latitude)),

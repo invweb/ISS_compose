@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONArray
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 data class IssUiState(
     val latitude: Double = 0.0,
@@ -34,6 +36,9 @@ data class IssUiState(
 
 private const val PREFS_NAME = "iss_path"
 private const val KEY_PATH = "path_history"
+private const val MAX_RETRY_DELAY_MS = 30_000L
+private const val INITIAL_RETRY_DELAY_MS = 1_000L
+private const val MAX_CONSECUTIVE_FAILURES = 10
 
 class IssViewModel : ViewModel() {
 
@@ -43,6 +48,7 @@ class IssViewModel : ViewModel() {
     private var fusedLocationClient: FusedLocationProviderClient? = null
     private var locationCallback: LocationCallback? = null
     private var prefs: SharedPreferences? = null
+    private var consecutiveFailures = 0
 
     fun initPrefs(context: Context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -92,8 +98,21 @@ class IssViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(hasLocationPermission = false)
     }
 
+    fun retryFetch() {
+        consecutiveFailures = 0
+        fetchIssPosition()
+    }
+
+    private suspend fun getRetryDelay(attempt: Int): Long {
+        val delay = minOf(INITIAL_RETRY_DELAY_MS * (1L shl attempt), MAX_RETRY_DELAY_MS)
+        delay(delay)
+        return delay
+    }
+
     private fun fetchIssPosition() {
         viewModelScope.launch {
+            var retryDelay = INITIAL_RETRY_DELAY_MS
+
             while (true) {
                 try {
                     val response = RetrofitClient.apiService.getIssPosition()
@@ -101,6 +120,11 @@ class IssViewModel : ViewModel() {
                     val lng = response.issPosition.longitudeDouble()
                     val history = _uiState.value.pathHistory + Pair(lat, lng)
                     val trimmed = if (history.size > 200) history.takeLast(200) else history
+
+                    // Reset on success
+                    consecutiveFailures = 0
+                    retryDelay = INITIAL_RETRY_DELAY_MS
+
                     _uiState.value = _uiState.value.copy(
                         latitude = lat,
                         longitude = lng,
@@ -110,16 +134,41 @@ class IssViewModel : ViewModel() {
                     )
                     savePath(trimmed)
                 } catch (e: Exception) {
+                    consecutiveFailures++
+
+                    val errorMessage = formatErrorMessage(e)
+
                     if (_uiState.value.latitude == 0.0 && _uiState.value.longitude == 0.0) {
+                        // First failure — show error but keep loading
                         _uiState.value = _uiState.value.copy(
-                            error = e.message,
+                            error = errorMessage,
                             isLoading = false
                         )
+                    } else {
+                        // Subsequent failures — update error message but keep last known position
+                        _uiState.value = _uiState.value.copy(
+                            error = errorMessage
+                        )
                     }
+
+                    if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+                        _uiState.value = _uiState.value.copy(
+                            error = "Multiple connection attempts failed. Using last known position."
+                        )
+                        // Still continue polling but with longer delay
+                    }
+
+                    retryDelay = minOf(retryDelay * 2, MAX_RETRY_DELAY_MS)
+                    delay(retryDelay)
                 }
-                delay(5000)
             }
         }
+    }
+
+    private fun formatErrorMessage(e: Exception): String = when (e) {
+        is SocketTimeoutException -> "Connection timed out. Check your internet connection."
+        is UnknownHostException -> "Unable to reach server. Check your internet connection."
+        else -> e.message ?: "Unexpected error occurred. Please try again."
     }
 
     private fun savePath(path: List<Pair<Double, Double>>) {
