@@ -44,7 +44,9 @@ private const val MAX_RETRY_DELAY_MS = 30_000L
 private const val INITIAL_RETRY_DELAY_MS = 1_000L
 private const val MAX_CONSECUTIVE_FAILURES = 10
 
-class IssViewModel : ViewModel() {
+class IssViewModel(
+    private val issDao: com.example.iss.data.IssDao
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(IssUiState())
     val uiState: StateFlow<IssUiState> = _uiState.asStateFlow()
@@ -52,12 +54,7 @@ class IssViewModel : ViewModel() {
     private var fusedLocationClient: FusedLocationProviderClient? = null
     private var locationCallback: LocationCallback? = null
     private var prefs: SharedPreferences? = null
-    private var issDao: com.example.iss.data.IssDao? = null
     private var consecutiveFailures = 0
-
-    fun initDatabase(context: Context) {
-        issDao = AppDatabase.getDatabase(context).issDao()
-    }
 
     fun initPrefs(context: Context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -118,7 +115,7 @@ class IssViewModel : ViewModel() {
 
             // Load cached position on first fetch
             if (_uiState.value.latitude == 0.0 && _uiState.value.longitude == 0.0) {
-                issDao?.getLastPositionRaw()?.let { raw ->
+                issDao.getLastPositionRaw()?.let { raw ->
                     _uiState.value = _uiState.value.copy(
                         latitude = raw.latitude,
                         longitude = raw.longitude,
@@ -138,7 +135,7 @@ class IssViewModel : ViewModel() {
                     val trimmed = if (history.size > 200) history.takeLast(200) else history
 
                     // Save to Room
-                    issDao?.insertPosition(IssPositionEntity(latitude = lat, longitude = lng, timestamp = System.currentTimeMillis()))
+                    issDao.insertPosition(IssPositionEntity(latitude = lat, longitude = lng, timestamp = System.currentTimeMillis()))
 
                     // Reset on success
                     consecutiveFailures = 0

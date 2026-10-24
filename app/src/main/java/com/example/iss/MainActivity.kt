@@ -7,7 +7,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -23,6 +22,7 @@ import com.example.iss.ui.SplashScreen
 import com.example.iss.ui.theme.ISSTheme
 import com.example.iss.viewmodel.AstroViewModel
 import com.example.iss.viewmodel.IssViewModel
+import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,56 +30,61 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ISSTheme {
-                val navController: NavHostController = rememberNavController()
-                
-                Scaffold(modifier = Modifier.fillMaxSize()) {
-                    NavHost(
-                        navController = navController,
-                        startDestination = Screen.Splash
-                    ) {
-                        composable<Screen.Splash> {
-                            SplashScreen(onFinished = { navController.navigate(Screen.Menu) { popUpTo(Screen.Splash) { inclusive = true } } })
-                        }
+                App()
+            }
+        }
+    }
 
-                        composable<Screen.Menu> {
-                            MenuScreen(
-                                onMap = { navController.navigate(Screen.Map) },
-                                onSettings = { navController.navigate(Screen.Settings) },
-                                onAstro = { navController.navigate(Screen.Astro) },
-                                onExit = { finish() }
-                            )
-                        }
+    @androidx.compose.runtime.Composable
+    private fun App() {
+        val navController: NavHostController = rememberNavController()
+        
+        Scaffold(modifier = Modifier.fillMaxSize()) {
+            NavHost(
+                navController = navController,
+                startDestination = Screen.Splash
+            ) {
+                composable<Screen.Splash> {
+                    SplashScreen(onFinished = { navController.navigate(Screen.Menu) { popUpTo(Screen.Splash) { inclusive = true } } })
+                }
 
-                        composable<Screen.Map> {
-                            val viewModel: IssViewModel = viewModel()
-                            IssScreen(
-                                onBack = { navController.popBackStack() },
-                                viewModel = viewModel
-                            )
-                        }
+                composable<Screen.Menu> {
+                    MenuScreen(
+                        onMap = { navController.navigate(Screen.Map) },
+                        onSettings = { navController.navigate(Screen.Settings) },
+                        onAstro = { navController.navigate(Screen.Astro) },
+                        onExit = { finish() }
+                    )
+                }
 
-                        composable<Screen.Settings> {
-                            SettingsScreen(onBack = { navController.popBackStack() })
-                        }
+                composable<Screen.Map> {
+                    val viewModel: IssViewModel = koinViewModel()
+                    IssScreen(
+                        onBack = { navController.popBackStack() },
+                        viewModel = viewModel
+                    )
+                }
 
-                        composable<Screen.Astro> {
-                            val viewModel: AstroViewModel = viewModel()
-                            AstroScreen(
-                                onBack = { navController.popBackStack() },
-                                viewModel = viewModel,
-                                onPersonClick = { name, craft -> navController.navigate(Screen.Detail(name, craft)) }
-                            )
-                        }
+                composable<Screen.Settings> {
+                    SettingsScreen(onBack = { navController.popBackStack() })
+                }
 
-                        composable<Screen.Detail> { backStackEntry ->
-                            val route = backStackEntry.toRoute<Screen.Detail>()
-                            AstronautDetailScreen(
-                                name = route.name,
-                                craft = route.craft,
-                                onBack = { navController.popBackStack() }
-                            )
-                        }
-                    }
+                composable<Screen.Astro> {
+                    val viewModel: AstroViewModel = koinViewModel()
+                    AstroScreen(
+                        onBack = { navController.popBackStack() },
+                        viewModel = viewModel,
+                        onPersonClick = { name, craft -> navController.navigate(Screen.Detail(name, craft)) }
+                    )
+                }
+
+                composable<Screen.Detail> { backStackEntry ->
+                    val route = backStackEntry.toRoute<Screen.Detail>()
+                    AstronautDetailScreen(
+                        name = route.name,
+                        craft = route.craft,
+                        onBack = { navController.popBackStack() }
+                    )
                 }
             }
         }

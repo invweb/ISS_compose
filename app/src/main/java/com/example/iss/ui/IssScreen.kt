@@ -62,7 +62,6 @@ fun IssScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.initDatabase(context)
         viewModel.initPrefs(context)
         viewModel.initLocation(context)
         val hasPermission = ContextCompat.checkSelfPermission(
