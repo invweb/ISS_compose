@@ -1,5 +1,6 @@
 package com.example.iss
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -35,6 +36,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     @androidx.compose.runtime.Composable
     private fun App() {
         val navController: NavHostController = rememberNavController()
