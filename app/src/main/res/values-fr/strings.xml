@@ -27,6 +27,10 @@
     <string name="settings_path_color">Couleur de la trajectoire ISS</string>
     <string name="settings_clear_path">Effacer l\'historique de la trajectoire</string>
     <string name="location_permission_rationale">L\'autorisation de localisation est nécessaire pour afficher votre position sur la carte.</string>
+    <string name="add_landmark">Ajouter un point d\'intérêt</string>
+    <string name="enter_landmark_name">Entrer le nom</string>
+    <string name="save">Sauvegarder</string>
+    <string name="landmark_added">Point d\'intérêt ajouté</string>
 
     <!-- Monuments -->
     <string name="landmark_eiffel">Tour Eiffel, Paris</string>

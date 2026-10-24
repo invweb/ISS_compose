@@ -27,6 +27,10 @@
     <string name="settings_path_color">Цвет траектории МКС</string>
     <string name="settings_clear_path">Очистить историю траектории</string>
     <string name="location_permission_rationale">Для отображения вашего местоположения на карте необходимо разрешение на геолокацию.</string>
+    <string name="add_landmark">Добавить достопримечательность</string>
+    <string name="enter_landmark_name">Введите название</string>
+    <string name="save">Сохранить</string>
+    <string name="landmark_added">Достопримечательность добавлена</string>
 
     <!-- Достопримечательности -->
     <string name="landmark_eiffel">Эйфелева башня, Париж</string>

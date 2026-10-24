@@ -27,6 +27,10 @@
     <string name="settings_path_color">Colore traiettoria ISS</string>
     <string name="settings_clear_path">Cancella cronologia traiettoria</string>
     <string name="location_permission_rationale">Il permesso di localizzazione è necessario per mostrare la tua posizione sulla mappa.</string>
+    <string name="add_landmark">Aggiungi punto d\'interesse</string>
+    <string name="enter_landmark_name">Inserire nome</string>
+    <string name="save">Salva</string>
+    <string name="landmark_added">Punto d\'interesse aggiunto</string>
 
     <!-- Monumenti -->
     <string name="landmark_eiffel">Torre Eiffel, Parigi</string>
