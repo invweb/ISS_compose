@@ -21,7 +21,8 @@ class CustomLandmarkViewModel(application: Application) : AndroidViewModel(appli
 
     private fun loadLandmarks() {
         val context = getApplication<Application>()
-        _landmarks.value = CustomLandmarkStorage.loadLandmarks(context)
+        val landmarks = CustomLandmarkStorage.loadLandmarks(context)
+        _landmarks.value = landmarks.sortedBy { it.name.lowercase() }
     }
 
     fun addLandmark(name: String, latitude: Double, longitude: Double) {
@@ -29,7 +30,7 @@ class CustomLandmarkViewModel(application: Application) : AndroidViewModel(appli
         val current = _landmarks.value.toMutableList()
         current.add(CustomLandmark(name = name, latitude = latitude, longitude = longitude))
         CustomLandmarkStorage.saveLandmarks(context, current)
-        _landmarks.value = current
+        _landmarks.value = current.sortedBy { it.name.lowercase() }
     }
 
     fun deleteLandmark(landmark: CustomLandmark) {
@@ -37,7 +38,7 @@ class CustomLandmarkViewModel(application: Application) : AndroidViewModel(appli
         val current = _landmarks.value.toMutableList()
         current.remove(landmark)
         CustomLandmarkStorage.saveLandmarks(context, current)
-        _landmarks.value = current
+        _landmarks.value = current.sortedBy { it.name.lowercase() }
     }
 
     fun clearAllLandmarks() {

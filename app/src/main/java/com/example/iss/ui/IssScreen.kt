@@ -84,7 +84,7 @@ fun IssScreen(
     }
 
     val customLandmarks = remember {
-        CustomLandmarkStorage.loadLandmarks(context)
+        CustomLandmarkStorage.loadLandmarks(context).sortedBy { it.name.lowercase() }
     }
 
     LaunchedEffect(Unit) {
