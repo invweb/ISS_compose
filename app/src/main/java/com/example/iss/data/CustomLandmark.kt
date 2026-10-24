@@ -33,6 +33,15 @@ object CustomLandmarkStorage {
         }
     }
 
+    fun deleteLandmark(context: Context, index: Int) {
+        val landmarks = loadLandmarks(context)
+        if (index in landmarks.indices) {
+            val updated = landmarks.toMutableList()
+            updated.removeAt(index)
+            saveLandmarks(context, updated)
+        }
+    }
+
     fun clearLandmarks(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().remove(KEY_CUSTOM_LANDMARKS).apply()
