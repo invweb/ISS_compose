@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -19,13 +20,18 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -36,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.iss.R
+import com.example.iss.data.CustomLandmark
+import com.example.iss.data.CustomLandmarkStorage
 import com.example.iss.viewmodel.IssViewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -49,6 +57,11 @@ fun IssScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    var showAddLandmarkDialog by remember { mutableStateOf(false) }
+    var landmarkName by remember { mutableStateOf("") }
+    var pendingLat by remember { mutableStateOf(0.0) }
+    var pendingLng by remember { mutableStateOf(0.0) }
+
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -59,6 +72,10 @@ fun IssScreen(
         } else {
             viewModel.onLocationPermissionDenied()
         }
+    }
+
+    val customLandmarks = remember {
+        CustomLandmarkStorage.loadLandmarks(context)
     }
 
     LaunchedEffect(Unit) {
@@ -81,6 +98,49 @@ fun IssScreen(
                 )
             )
         }
+    }
+
+    if (showAddLandmarkDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddLandmarkDialog = false },
+            title = { Text(stringResource(R.string.add_landmark)) },
+            text = {
+                OutlinedTextField(
+                    value = landmarkName,
+                    onValueChange = { landmarkName = it },
+                    label = { Text(stringResource(R.string.enter_landmark_name)) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (landmarkName.isNotBlank()) {
+                            val newLandmark = CustomLandmark(
+                                name = landmarkName,
+                                latitude = pendingLat,
+                                longitude = pendingLng
+                            )
+                            val updated = customLandmarks + newLandmark
+                            CustomLandmarkStorage.saveLandmarks(context, updated)
+                            landmarkName = ""
+                            showAddLandmarkDialog = false
+                        }
+                    },
+                    enabled = landmarkName.isNotBlank()
+                ) {
+                    Text(stringResource(R.string.save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    landmarkName = ""
+                    showAddLandmarkDialog = false
+                }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -160,7 +220,12 @@ fun IssScreen(
                         userLatitude = uiState.userLatitude,
                         userLongitude = uiState.userLongitude,
                         pathHistory = uiState.pathHistory,
-                        modifier = Modifier.fillMaxSize()
+                        customLandmarks = customLandmarks,
+                        onAddLandmark = { lat, lng ->
+                            pendingLat = lat
+                            pendingLng = lng
+                            showAddLandmarkDialog = true
+                        }
                     )
                 } else {
                     CircularProgressIndicator(

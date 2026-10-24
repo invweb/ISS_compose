@@ -17,14 +17,22 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.SatelliteAlt
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -32,6 +40,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.iss.R
+import com.example.iss.data.CustomLandmark
+import com.example.iss.data.CustomLandmarkStorage
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -71,6 +81,8 @@ fun IssMap(
     userLatitude: Double? = null,
     userLongitude: Double? = null,
     pathHistory: List<Pair<Double, Double>> = emptyList(),
+    customLandmarks: List<CustomLandmark> = emptyList(),
+    onAddLandmark: (Double, Double) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -120,6 +132,18 @@ fun IssMap(
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                     title = context.getString(landmark.nameResId)
                     snippet = String.format("%.4f, %.4f", landmark.lat, landmark.lng)
+                    icon = landmarkIcon
+                }
+                overlays.add(marker)
+            }
+
+            for (customLandmark in customLandmarks) {
+                val point = GeoPoint(customLandmark.latitude, customLandmark.longitude)
+                val marker = Marker(this).apply {
+                    position = point
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    title = customLandmark.name
+                    snippet = String.format("%.4f, %.4f", customLandmark.latitude, customLandmark.longitude)
                     icon = landmarkIcon
                 }
                 overlays.add(marker)
@@ -271,6 +295,23 @@ fun IssMap(
             Icon(
                 imageVector = Icons.Default.MyLocation,
                 contentDescription = stringResource(R.string.my_location)
+            )
+        }
+
+        FloatingActionButton(
+            onClick = {
+                onAddLandmark(latitude, longitude)
+            },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp, 16.dp),
+            shape = CircleShape,
+            containerColor = MaterialTheme.colorScheme.secondary,
+            contentColor = MaterialTheme.colorScheme.onSecondary
+        ) {
+            Icon(
+                imageVector = Icons.Default.Place,
+                contentDescription = stringResource(R.string.add_landmark)
             )
         }
     }
