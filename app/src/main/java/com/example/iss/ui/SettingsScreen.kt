@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -33,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -95,9 +97,14 @@ fun SettingsScreen(
     val pathPrefs = remember { context.getSharedPreferences("iss_path", Context.MODE_PRIVATE) }
     var showClearDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf<CustomLandmark?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
     val currentIssColor = remember { getIssMarkerColor(context) }
     val currentPathColor = remember { getPathColor(context) }
     val landmarks by viewModel.landmarks.collectAsState()
+    
+    val filteredLandmarks = landmarks.filter {
+        searchQuery.isBlank() || it.name.lowercase().contains(searchQuery.lowercase())
+    }
 
     Scaffold(
         topBar = {
@@ -196,6 +203,26 @@ fun SettingsScreen(
                     
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    // Search field
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = {
+                            Text(stringResource(R.string.settings_search_landmarks))
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     if (landmarks.isEmpty()) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -214,9 +241,31 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.outline
                             )
                         }
+                    } else if (filteredLandmarks.isEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.settings_no_results, searchQuery),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
                     } else {
                         Text(
-                            text = stringResource(R.string.settings_landmarks_count, landmarks.size),
+                            text = if (searchQuery.isBlank()) {
+                                stringResource(R.string.settings_landmarks_count, landmarks.size)
+                            } else {
+                                stringResource(R.string.settings_found_landmarks, filteredLandmarks.size, landmarks.size)
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.outline,
                             modifier = Modifier.padding(bottom = 8.dp)
@@ -226,7 +275,7 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(landmarks, key = { it.id }) { landmark ->
+                            items(filteredLandmarks, key = { it.id }) { landmark ->
                                 LandmarkSettingsItem(
                                     landmark = landmark,
                                     onDelete = { showDeleteDialog = landmark }
@@ -289,6 +338,7 @@ fun SettingsScreen(
                 TextButton(
                     onClick = {
                         viewModel.deleteLandmark(landmark)
+                        searchQuery = ""
                         showDeleteDialog = null
                     }
                 ) {

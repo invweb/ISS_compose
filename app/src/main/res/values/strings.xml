@@ -65,4 +65,7 @@
     <string name="settings_delete_landmark_message">Are you sure you want to delete %s?</string>
     <string name="settings_delete_action">Delete</string>
     <string name="settings_delete_landmark_desc">Delete landmark</string>
+    <string name="settings_search_landmarks">Search landmarks…</string>
+    <string name="settings_no_results">No landmarks found for "%s"</string>
+    <string name="settings_found_landmarks" formatted="false">%d of %d landmark(s)</string>
 </resources>
