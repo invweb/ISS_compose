@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,6 +50,7 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
+import java.util.concurrent.ConcurrentHashMap
 
 data class Landmark(val nameResId: Int, val lat: Double, val lng: Double)
 
@@ -72,6 +75,15 @@ private val landmarks = listOf(
     Landmark(R.string.landmark_parthenon, 37.9715, 23.7267),
     Landmark(R.string.landmark_marina_bay, 1.2834, 103.8607),
     Landmark(R.string.landmark_burj_khalifa, 25.1972, 55.2744)
+)
+
+// Animation state tracker
+val activeAnimations = ConcurrentHashMap<String, AnimationState>()
+
+data class AnimationState(
+    val marker: Marker,
+    val progress: Float,
+    val startTime: Long
 )
 
 @Composable
@@ -151,6 +163,7 @@ fun IssMap(
         }
     }
 
+    // ISS marker with pulse animation
     LaunchedEffect(latitude, longitude) {
         val existingIssMarker = mapView.overlays.filterIsInstance<Marker>()
             .firstOrNull { it.title == markerTitle }
@@ -166,8 +179,12 @@ fun IssMap(
         }
         mapView.overlays.add(issMarker)
         mapView.invalidate()
+
+        // Start pulse animation
+        startPulseAnimation(mapView, issMarker, issPoint, markerTitle)
     }
 
+    // Path history animation
     LaunchedEffect(pathHistory) {
         mapView.overlays.filterIsInstance<Polyline>().forEach { mapView.overlays.remove(it) }
         if (pathHistory.size >= 2) {
@@ -181,6 +198,7 @@ fun IssMap(
         }
     }
 
+    // User location with pulse animation
     LaunchedEffect(userLatitude, userLongitude) {
         val uLat = userLatitude
         val uLng = userLongitude
@@ -198,12 +216,16 @@ fun IssMap(
             }
             mapView.overlays.add(userMarker)
             mapView.invalidate()
+
+            // Start pulse animation for user location
+            startPulseAnimation(mapView, userMarker, userPoint, myLocationTitle, android.graphics.Color.parseColor("#2196F3"))
         }
     }
 
     DisposableEffect(mapView) {
         onDispose {
             mapView.onDetach()
+            activeAnimations.clear()
         }
     }
 
@@ -315,6 +337,81 @@ fun IssMap(
             )
         }
     }
+}
+
+private fun startPulseAnimation(
+    mapView: MapView,
+    marker: Marker,
+    point: GeoPoint,
+    animKey: String,
+    color: Int = android.graphics.Color.parseColor("#FF333333")
+) {
+    // Remove existing animation for this marker
+    activeAnimations.values.filter { it.marker == marker }.forEach {
+        mapView.overlays.remove(it.marker)
+    }
+    activeAnimations.remove(animKey)
+
+    // Create pulse ring marker
+    val pulseBitmap = createPulseBitmap(60, color, 0.3f)
+    val pulseMarker = Marker(mapView).apply {
+        position = point
+        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+        icon = BitmapDrawable(mapView.context.resources, pulseBitmap)
+        alpha = 0.6f
+    }
+    mapView.overlays.add(pulseMarker)
+
+    val animState = AnimationState(pulseMarker, 0f, System.currentTimeMillis())
+    activeAnimations[animKey] = animState
+
+    // Start animation coroutine
+    Handler(Looper.getMainLooper()).post(object : Runnable {
+        var startTime = System.currentTimeMillis()
+        override fun run() {
+            val elapsed = System.currentTimeMillis() - startTime
+            val duration = 2000L // 2 seconds
+            val progress = (elapsed % duration).toFloat() / duration.toFloat()
+            
+            // Scale and fade
+            val scale = 1.0f + 2.5f * progress
+            val alpha = 0.6f * (1.0f - progress)
+            
+            val newBitmap = createPulseBitmap(
+                (60 * scale).toInt(),
+                color,
+                alpha
+            )
+            pulseMarker.icon = BitmapDrawable(mapView.context.resources, newBitmap)
+            pulseMarker.alpha = alpha
+            
+            mapView.invalidate()
+            
+            if (progress < 1.0f) {
+                Handler(Looper.getMainLooper()).post(this)
+            } else {
+                // Animation complete, remove marker
+                mapView.overlays.remove(pulseMarker)
+                mapView.invalidate()
+            }
+        }
+    })
+}
+
+private fun createPulseBitmap(size: Int, color: Int, alpha: Float): Bitmap {
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    
+    paint.color = color
+    paint.alpha = (alpha * 255).toInt().coerceIn(0, 255)
+    paint.style = android.graphics.Paint.Style.STROKE
+    paint.strokeWidth = 3f
+    
+    val radius = (size / 2f) * 0.8f
+    canvas.drawCircle(size / 2f, size / 2f, radius, paint)
+    
+    return bitmap
 }
 
 private fun drawableToBitmap(context: Context, resId: Int, sizeDp: Int): Bitmap {
