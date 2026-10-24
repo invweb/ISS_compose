@@ -5,6 +5,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
 data class CustomLandmark(
+    val id: Long = System.currentTimeMillis(),
     val name: String,
     val latitude: Double,
     val longitude: Double

@@ -53,4 +53,16 @@
     <string name="landmark_parthenon">Parthenon, Athens</string>
     <string name="landmark_marina_bay">Marina Bay Sands, Singapore</string>
     <string name="landmark_burj_khalifa">Burj Khalifa, Dubai</string>
+
+    <!-- Settings Landmarks -->
+    <string name="settings_landmarks_section">Custom Landmarks</string>
+    <string name="settings_no_landmarks">No custom landmarks yet. Add them from the Map screen.</string>
+    <string name="settings_landmarks_count">%d landmark(s)</string>
+    <string name="settings_app_info">App Information</string>
+    <string name="settings_version">Version %s</string>
+    <string name="settings_offline_support">Offline mode available with Room database</string>
+    <string name="settings_delete_landmark_title">Delete Landmark</string>
+    <string name="settings_delete_landmark_message">Are you sure you want to delete %s?</string>
+    <string name="settings_delete_action">Delete</string>
+    <string name="settings_delete_landmark_desc">Delete landmark</string>
 </resources>

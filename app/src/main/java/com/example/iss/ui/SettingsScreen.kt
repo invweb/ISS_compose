@@ -9,30 +9,40 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,7 +50,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.iss.R
+import com.example.iss.data.CustomLandmark
+import com.example.iss.viewmodel.CustomLandmarkViewModel
 
 private const val PREFS_NAME = "iss_settings"
 private const val KEY_ISS_COLOR = "iss_marker_color"
@@ -73,13 +86,18 @@ fun getPathColor(context: Context): Int {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    viewModel: CustomLandmarkViewModel = viewModel()
+) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
     val pathPrefs = remember { context.getSharedPreferences("iss_path", Context.MODE_PRIVATE) }
     var showClearDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf<CustomLandmark?>(null) }
     val currentIssColor = remember { getIssMarkerColor(context) }
     val currentPathColor = remember { getPathColor(context) }
+    val landmarks by viewModel.landmarks.collectAsState()
 
     Scaffold(
         topBar = {
@@ -102,6 +120,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
+            // ISS Marker Color section
             Text(
                 text = stringResource(R.string.settings_iss_color),
                 style = MaterialTheme.typography.titleMedium
@@ -129,8 +148,9 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
+            // Path Color section
             Text(
                 text = stringResource(R.string.settings_path_color),
                 style = MaterialTheme.typography.titleMedium
@@ -158,17 +178,87 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
+            // Custom Landmarks section
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.settings_landmarks_section),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (landmarks.isEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Map,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.settings_no_landmarks),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = stringResource(R.string.settings_landmarks_count, landmarks.size),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(landmarks, key = { it.id }) { landmark ->
+                                LandmarkSettingsItem(
+                                    landmark = landmark,
+                                    onDelete = { showDeleteDialog = landmark }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Clear path button
             Button(
                 onClick = { showClearDialog = true },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(stringResource(R.string.settings_clear_path))
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // App info
+            Text(
+                text = stringResource(R.string.settings_version, "1.0.0"),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline
+            )
         }
     }
 
+    // Clear path dialog
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
@@ -187,5 +277,72 @@ fun SettingsScreen(onBack: () -> Unit) {
             },
             title = { Text(stringResource(R.string.settings_clear_path)) }
         )
+    }
+
+    // Delete landmark dialog
+    showDeleteDialog?.let { landmark ->
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = null },
+            title = { Text(stringResource(R.string.settings_delete_landmark_title)) },
+            text = { Text(stringResource(R.string.settings_delete_landmark_message, landmark.name)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteLandmark(landmark)
+                        showDeleteDialog = null
+                    }
+                ) {
+                    Text(stringResource(R.string.settings_delete_action), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteDialog = null }
+                ) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun LandmarkSettingsItem(
+    landmark: CustomLandmark,
+    onDelete: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { }
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = landmark.name,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = String.format("%.4f°, %.4f°", landmark.latitude, landmark.longitude),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        
+        IconButton(
+            onClick = onDelete,
+            modifier = Modifier.size(40.dp)
+        ) {
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = stringResource(R.string.settings_delete_landmark_desc),
+                tint = MaterialTheme.colorScheme.error
+            )
+        }
     }
 }
